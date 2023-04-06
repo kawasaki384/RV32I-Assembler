@@ -52,6 +52,24 @@ unsigned int char_to_register(char *string)
     return value;
 }
 
+// ディスプレースメントからレジスタをとる
+unsigned int displacement_to_register(char *string)
+{
+    // 一応トークンの最大値
+    char value[128];
+    char dummy[128];
+
+    unsigned int reg;
+    if (sscanf(string, "%[^a-(]%s(x%s)", dummy, value) != 2)
+    {
+        printf("displacement_to_register関数のエラー");
+    }
+
+    sscanf(value, "(x%d)", &reg);
+
+    return reg;
+}
+
 typedef struct _char_to_imm_return
 {
     int imm;
@@ -67,9 +85,35 @@ char_to_imm_return char_to_imm(char *string)
 
     unsigned int count = 0;
 
+    char reg_dummy[128];
+    char imm_sscanf[128];
+
+    unsigned base = 10;
+
+    // 0x???の場合
+    if (strlen(string) > 2 && string[0] == '0' && string[1] == 'x')
+    {
+        base = 16;
+        for (int i = 2; i < strlen(string); i++)
+        {
+            string[i - 2] = string[i];
+        }
+        string[strlen(string) - 2] = '\0';
+    }
+    // 0b???の場合
+    else if (strlen(string) > 2 && string[0] == '0' && string[1] == 'b')
+    {
+        base = 2;
+        for (int i = 2; i < strlen(string); i++)
+        {
+            string[i - 2] = string[i];
+        }
+        string[strlen(string) - 2] = '\0';
+    }
+
     for (int i = 0; i < strlen(string); i++)
     {
-        int a = (int)pow(10, strlen(string) - 1 - i);
+        int a = (int)pow(base, strlen(string) - 1 - i);
         switch (string[i])
         {
         case '-':
@@ -108,6 +152,42 @@ char_to_imm_return char_to_imm(char *string)
         case '9':
             calc += a * 9;
             break;
+        case 'a':
+            calc += a * 10;
+            break;
+        case 'b':
+            calc += a * 11;
+            break;
+        case 'c':
+            calc += a * 12;
+            break;
+        case 'd':
+            calc += a * 13;
+            break;
+        case 'e':
+            calc += a * 14;
+            break;
+        case 'f':
+            calc += a * 15;
+            break;
+        case 'A':
+            calc += a * 10;
+            break;
+        case 'B':
+            calc += a * 11;
+            break;
+        case 'C':
+            calc += a * 12;
+            break;
+        case 'D':
+            calc += a * 13;
+            break;
+        case 'E':
+            calc += a * 14;
+            break;
+        case 'F':
+            calc += a * 15;
+            break;
         default:
             count++;
         }
@@ -140,11 +220,28 @@ char_to_imm_return char_to_imm(char *string)
 
     return_value.imm = calc;
 
-    if(calc > 0b111111111111){
+    if (calc > 0b111111111111)
+    {
         printf("OverFlow Warning!! \n");
     }
 
     return return_value;
+}
+
+// ディスプレースメントからイミーディエイトをとる
+char_to_imm_return displacement_to_imm(char *string)
+{
+    // 一応トークンの最大値
+    char value[128];
+    char dummy[128];
+
+    unsigned int reg;
+    if (sscanf(string, "%[^a-(]%s(x%s)", value, dummy) != 2)
+    {
+        printf("displacement_to_imm関数のエラー");
+    }
+
+    return char_to_imm(value);
 }
 
 // offset(rs1)のoffsetを取得します。 エラー処理未実装
@@ -177,14 +274,13 @@ void set_opcode_BRANCH(instruction_info *inst, unsigned int y)
     }
     else
     {
-        printf("Error_set_opcode_branch Operandが少なすぎます 行:%d", y);
+        printf("Error_set_opcode_branch Operandが少なすぎます 行:%d \n", y);
     }
 }
 
 // LOAD系に必要なOperandを代入します。
 void set_opcode_LOAD(instruction_info *inst, unsigned int y)
 {
-    //ディスプレースメント付きレジスタ間接指定は未実装
     if (token[y][1] != NULL && token[y][2] != NULL && token[y][3] != NULL)
     {
         inst->rd = char_to_register(token[y][1]);
@@ -192,26 +288,40 @@ void set_opcode_LOAD(instruction_info *inst, unsigned int y)
         inst->rs1 = char_to_register(token[y][2]);
         inst->is_imm_label = char_to_imm(token[y][3]).is_imm_label;
     }
+    else if (token[y][1] != NULL && token[y][2] != NULL)
+    {
+        inst->rd = char_to_register(token[y][1]);
+        inst->imm = displacement_to_imm(token[y][2]).imm;
+        inst->rs1 = displacement_to_register(token[y][2]);
+        inst->is_imm_label = displacement_to_imm(token[y][2]).is_imm_label;
+    }
     else
     {
-        printf("Error_set_opcode_load Operandが少なすぎます 行:%d", y);
+        printf("Error_set_opcode_load Operandが少なすぎます 行:%d \n", y);
     }
 }
 
 // STORE系に必要なOperandを代入します。
 void set_opcode_STORE(instruction_info *inst, unsigned int y)
 {
-    if (token[y][1] != NULL && token[y][2] != NULL && token[y][3])
+    if (token[y][1] != NULL && token[y][2] != NULL && token[y][3] != NULL)
     {
-        //ディスプレースメント付きレジスタ間接指定は未実装
         inst->rs2 = char_to_register(token[y][1]);
         inst->rs1 = char_to_register(token[y][2]);
         inst->imm = char_to_imm(token[y][3]).imm;
         inst->is_imm_label = char_to_imm(token[y][3]).is_imm_label;
     }
+    else if (token[y][1] != NULL && token[y][2] != NULL)
+    {
+        // ディスプレースメント付きレジスタ間接指定の場合
+        inst->rs2 = char_to_register(token[y][1]);
+        inst->rs1 = displacement_to_register(token[y][2]);
+        inst->imm = displacement_to_imm(token[y][2]).imm;
+        inst->is_imm_label = displacement_to_imm(token[y][2]).is_imm_label;
+    }
     else
     {
-        printf("Error_set_opcode_store Operandが少なすぎます 行:%d", y);
+        printf("Error_set_opcode_store Operandが少なすぎます 行:%d \n", y);
     }
 }
 
@@ -225,9 +335,17 @@ void set_opcode_OP_IMM(instruction_info *inst, unsigned int y)
         inst->imm = char_to_imm(token[y][3]).imm;
         inst->is_imm_label = char_to_imm(token[y][3]).is_imm_label;
     }
+    else if (token[y][1] != NULL && token[y][2] != NULL)
+    {
+        // ディスプレースメント付きレジスタ間接指定の場合もある。
+        inst->rd = char_to_register(token[y][1]);
+        inst->rs1 = displacement_to_register(token[y][2]);
+        inst->imm = displacement_to_imm(token[y][2]).imm;
+        inst->is_imm_label = displacement_to_imm(token[y][2]).is_imm_label;
+    }
     else
     {
-        printf("Error_set_opcode_op_imm Operandが少なすぎます 行:%d", y);
+        printf("Error_set_opcode_op_imm Operandが少なすぎます 行:%d \n", y);
     }
 }
 
@@ -242,7 +360,7 @@ void set_opcode_OP(instruction_info *inst, unsigned int y)
     }
     else
     {
-        printf("Error_set_opcode_op Operandが少なすぎます 行:%d", y);
+        printf("Error_set_opcode_op Operandが少なすぎます 行:%d \n", y);
     }
 }
 
@@ -338,7 +456,7 @@ unsigned int type_I(unsigned int opcode, unsigned int rd, unsigned int funct3, u
 // オペランド、命令の情報からタイプSの機械語を生成します。
 unsigned int type_S(unsigned int opcode, unsigned int funct3, unsigned int rs1, unsigned int rs2, int imm)
 {
-    printf("%d %d %d",rs1,rs2,imm);
+    printf("%d %d %d", rs1, rs2, imm);
     unsigned int output = 0;
     output |= (opcode & 0b1111111);
     output |= (imm & 0b11111) << 7;

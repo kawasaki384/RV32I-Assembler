@@ -119,6 +119,14 @@ int main(int argc, char **argv)
         if(init_label(i,&addr) == 0)
             addr+=4;
     }
+
+    for(int i = 0; i < 128;i++){
+        for(int j = 0; j < 8;j++)
+            printf("%s ",token[i][j]);
+
+        printf("\n");
+    }
+
     _0flag();
     addr = 0;
     FILE* output_file = fopen("a.out","w");

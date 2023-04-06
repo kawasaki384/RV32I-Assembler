@@ -85,9 +85,6 @@ char_to_imm_return char_to_imm(char *string)
 
     unsigned int count = 0;
 
-    char reg_dummy[128];
-    char imm_sscanf[128];
-
     unsigned base = 10;
 
     // 0x???の場合
